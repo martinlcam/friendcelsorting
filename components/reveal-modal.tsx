@@ -63,7 +63,8 @@ export function RevealModal({ open, onOpenChange, player }: RevealModalProps) {
                 {isImposter ? "You are an Imposter" : "You are NOT an Imposter"}
               </div>
               <p className="text-sm text-muted-foreground mt-4">
-                {isImposter ? "Blend in with the crew!" : "Spot the imposters!"}
+                {/*change this default ahh text*/}
+                {isImposter ? "peepo smile" : "peepo hmmdge"}
               </p>
             </div>
           )}
