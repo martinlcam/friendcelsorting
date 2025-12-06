@@ -17,8 +17,8 @@ export default function Home() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-2 text-pretty">🎭 Hidden Imposters</h1>
-          <p className="text-lg text-muted-foreground">Randomly assign roles for your party game</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 text-pretty">🎭 Dorval Dealers</h1>
+          <p className="text-lg text-muted-foreground">Winners make it to Agartha</p>
         </div>
 
         {/* Game View */}
@@ -57,7 +57,7 @@ export default function Home() {
         {/* Footer Info */}
         {players.length > 0 && (
           <div className="text-center text-sm text-muted-foreground py-4">
-            💡 Tip: Each player reveals their role privately after randomizing
+            💡 Tip: Skill Issue
           </div>
         )}
       </div>
