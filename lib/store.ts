@@ -3,21 +3,33 @@ import { create } from "zustand"
 export interface Player {
   id: string
   name: string
+  team: number
 }
+
+type GamePhase = "setup" | "reveal" | "voting" | "results"
 
 interface GameState {
   players: Player[]
   imposters: string[]
   imposterCount: number
-  revealedImposters: Set<string>
+  teamCount: number
+  revealedPlayers: Set<string>
   gameStarted: boolean
+  gamePhase: GamePhase
+  currentRevealingPlayer: string | null
+  votes: Map<string, string>
+  revealedVotes: boolean
 
   addPlayer: (name: string) => void
   renamePlayer: (id: string, name: string) => void
   removePlayer: (id: string) => void
   setImposterCount: (n: number) => void
+  setTeamCount: (n: number) => void
   randomizeGame: () => void
-  revealImposter: (playerId: string) => void
+  setCurrentRevealingPlayer: (playerId: string | null) => void
+  markPlayerRevealed: (playerId: string) => void
+  addVote: (voterId: string, voteFor: string) => void
+  endVoting: () => void
   resetGame: () => void
 }
 
@@ -25,12 +37,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   players: [],
   imposters: [],
   imposterCount: 1,
-  revealedImposters: new Set(),
+  teamCount: 2,
+  revealedPlayers: new Set(),
   gameStarted: false,
+  gamePhase: "setup",
+  currentRevealingPlayer: null,
+  votes: new Map(),
+  revealedVotes: false,
 
   addPlayer: (name: string) =>
     set((state) => ({
-      players: [...state.players, { id: crypto.randomUUID(), name }],
+      players: [...state.players, { id: crypto.randomUUID(), name, team: 0 }],
     })),
 
   renamePlayer: (id: string, name: string) =>
@@ -48,29 +65,77 @@ export const useGameStore = create<GameState>((set, get) => ({
       imposterCount: Math.max(0, Math.min(n, get().players.length)),
     })),
 
-  randomizeGame: () => {
-    const { players, imposterCount } = get()
-    const shuffled = shuffle([...players])
-    const newImposters = shuffled.slice(0, imposterCount).map((p) => p.id)
+  setTeamCount: (n: number) =>
     set(() => ({
+      teamCount: Math.max(2, Math.min(n, get().players.length)),
+    })),
+
+  randomizeGame: () => {
+    const { players, imposterCount, teamCount } = get()
+    const shuffled = shuffle([...players])
+
+    const playersWithTeams = shuffled.map((p, idx) => ({
+      ...p,
+      team: idx % teamCount,
+    }))
+
+    const newImposters = shuffle(playersWithTeams)
+      .slice(0, imposterCount)
+      .map((p) => p.id)
+
+    set(() => ({
+      players: playersWithTeams,
       imposters: newImposters,
-      revealedImposters: new Set(),
+      revealedPlayers: new Set(),
       gameStarted: true,
+      gamePhase: "reveal",
+      currentRevealingPlayer: playersWithTeams[0].id,
+      votes: new Map(),
+      revealedVotes: false,
     }))
   },
 
-  revealImposter: (playerId: string) =>
+  setCurrentRevealingPlayer: (playerId: string | null) =>
+    set(() => ({
+      currentRevealingPlayer: playerId,
+    })),
+
+  markPlayerRevealed: (playerId: string) =>
     set((state) => {
-      const newRevealed = new Set(state.revealedImposters)
+      const newRevealed = new Set(state.revealedPlayers)
       newRevealed.add(playerId)
-      return { revealedImposters: newRevealed }
+
+      const unrevealedPlayers = state.players.filter((p) => !newRevealed.has(p.id))
+
+      return {
+        revealedPlayers: newRevealed,
+        currentRevealingPlayer: unrevealedPlayers.length > 0 ? unrevealedPlayers[0].id : null,
+        gamePhase: unrevealedPlayers.length === 0 ? "voting" : "reveal",
+      }
     }),
+
+  addVote: (voterId: string, voteFor: string) =>
+    set((state) => {
+      const newVotes = new Map(state.votes)
+      newVotes.set(voterId, voteFor)
+      return { votes: newVotes }
+    }),
+
+  endVoting: () =>
+    set(() => ({
+      gamePhase: "results",
+      revealedVotes: true,
+    })),
 
   resetGame: () =>
     set(() => ({
       imposters: [],
-      revealedImposters: new Set(),
+      revealedPlayers: new Set(),
       gameStarted: false,
+      gamePhase: "setup",
+      currentRevealingPlayer: null,
+      votes: new Map(),
+      revealedVotes: false,
     })),
 }))
 

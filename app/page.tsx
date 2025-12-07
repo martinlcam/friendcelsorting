@@ -1,65 +1,92 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AddPlayerForm } from "@/components/add-player-form"
-import { PlayerList } from "@/components/player-list"
-import { ImposterSettings } from "@/components/imposter-settings"
-import { RandomizeButton } from "@/components/randomize-button"
-import { GameView } from "@/components/game-view"
-import { useGameStore } from "@/lib/store"
+import { useState, useEffect } from "react"
+import { CreateRoom } from "@/components/create-room"
+import { JoinRoom } from "@/components/join-room"
+import { Lobby } from "@/components/lobby"
+import { RoleReveal } from "@/components/role-reveal"
+import { Voting } from "@/components/voting"
+import { Results } from "@/components/results"
+import { getSessionByCode } from "@/lib/game-service"
+
+type GamePhase = "home" | "lobby" | "reveal" | "voting" | "results"
 
 export default function Home() {
-  const players = useGameStore((state) => state.players)
-  const gameStarted = useGameStore((state) => state.gameStarted)
+  const [gamePhase, setGamePhase] = useState<GamePhase>("home")
+  const [roomCode, setRoomCode] = useState("")
+  const [sessionId, setSessionId] = useState("")
+  const [deviceId] = useState(() => localStorage.getItem("deviceId") || crypto.randomUUID())
+
+  useEffect(() => {
+    localStorage.setItem("deviceId", deviceId)
+  }, [deviceId])
+
+  const handleRoomCreated = (code: string) => {
+    setRoomCode(code)
+    getSessionByCode(code).then((session) => {
+      setSessionId(session.id)
+      setGamePhase("lobby")
+    })
+  }
+
+  const handleRoomJoined = (code: string) => {
+    setRoomCode(code)
+    getSessionByCode(code).then((session) => {
+      setSessionId(session.id)
+      setGamePhase("lobby")
+    })
+  }
+
+  const handleGameStarted = () => {
+    setGamePhase("reveal")
+  }
+
+  const handleRevealComplete = () => {
+    setGamePhase("voting")
+  }
+
+  const handleResultsReady = () => {
+    setGamePhase("results")
+  }
+
+  const handlePlayAgain = () => {
+    setGamePhase("reveal")
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold mb-2 text-pretty">🎭 Dorval Dealers</h1>
-          <p className="text-lg text-muted-foreground">Winners make it to Agartha</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-2 text-pretty">🎭 Hidden Imposters</h1>
+          <p className="text-lg text-muted-foreground">Multiplayer Party Game</p>
         </div>
 
-        {/* Game View */}
-        <GameView />
-
-        {/* Setup Section */}
-        {players.length === 0 || !gameStarted ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Players</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <AddPlayerForm />
-              {players.length > 0 && (
-                <>
-                  <PlayerList />
-                  <ImposterSettings />
-                  <RandomizeButton />
-                </>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Setup Another Game</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-sm text-muted-foreground">{players.length} players ready</div>
-              <ImposterSettings />
-              <RandomizeButton />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Footer Info */}
-        {players.length > 0 && (
-          <div className="text-center text-sm text-muted-foreground py-4">
-            💡 Tip: Skill Issue
+        {gamePhase === "home" && (
+          <div className="space-y-4">
+            <CreateRoom onRoomCreated={handleRoomCreated} />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+            <JoinRoom onRoomJoined={handleRoomJoined} />
           </div>
         )}
+
+        {gamePhase === "lobby" && <Lobby roomCode={roomCode} sessionId={sessionId} onGameStarted={handleGameStarted} />}
+
+        {gamePhase === "reveal" && (
+          <RoleReveal sessionId={sessionId} deviceId={deviceId} onRevealsComplete={handleRevealComplete} />
+        )}
+
+        {gamePhase === "voting" && (
+          <Voting sessionId={sessionId} deviceId={deviceId} onResultsReady={handleResultsReady} />
+        )}
+
+        {gamePhase === "results" && <Results sessionId={sessionId} onPlayAgain={handlePlayAgain} />}
       </div>
     </main>
   )
